@@ -1,0 +1,32 @@
+name: Build macOS AU and VST3
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+  pull_request:
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G Xcode -DCMAKE_BUILD_TYPE=Release
+      - name: Build AU and VST3
+        run: cmake --build build --config Release --parallel 3
+      - name: Verify outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          AU=$(find build -type d -name '*.component' -print -quit)
+          VST=$(find build -type d -name '*.vst3' -print -quit)
+          test -n "$AU" && test -n "$VST"
+          echo "AU: $AU"
+          echo "VST3: $VST"
+          mkdir -p artifacts/AU artifacts/VST3
+          ditto "$AU" "artifacts/AU/$(basename "$AU")"
+          ditto "$VST" "artifacts/VST3/$(basename "$VST")"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VST3EffektPlus-macOS-AU-VST3
+          path: artifacts/
+          if-no-files-found: error
